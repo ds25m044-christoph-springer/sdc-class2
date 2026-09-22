@@ -13,39 +13,132 @@
 - An API key for the `ImageGenerator` service.
 - Documentation on Stable Diffusion and its prompt-handling capabilities.
 
-#### Key Tasks and Requirements:
-1. **Set Up a FastAPI Project**:
-   - Initialize a new FastAPI application.
-   - Install necessary dependencies, including libraries for interacting with the `ImageGenerator` service.
 
-2. **Custom Prompt Development**:
-   - Design a unique prompt structure that users can utilize your own image requirements.
+The API is **asynchronous**: image generation runs in the background so the client does not have to wait for the Stable Diffusion API to finish.
 
-3. **Asynchronous Image Generation Endpoint (`/images`)**:
-   - Create an endpoint to accept image generation requests.
-   - Implement asynchronous processing using FastAPI's `BackgroundTasks`.
-   - Optional: use redis queue
+## How It Works
 
-4. **Background Task for Image Generation (`gen_image_task`)**:
-   - Code a function that uses the `ImageGenerator` with custom prompts to generate images.
-   - Handle image saving and retrieval.
+1. The client sends a text prompt to `POST /images`.
+2. The API creates a unique image ID and returns immediately with status `processing`.
+3. FastAPI's `BackgroundTasks` runs the image generation in the background.
+4. The generated PNG image is saved locally in the `images/` directory.
+5. The client uses `GET /image/{image_id}` to check the status.
+6. Once generation is complete, the endpoint returns the generated PNG image.
 
-5. **Image Retrieval Endpoint (`/image/{image_id}`)**:
-   - Develop an endpoint for users to retrieve their generated images using an image ID.
-   - Implement appropriate responses for different image statuses (e.g., processing, ready, not found).
+The application keeps the current job status in memory and stores generated images as PNG files.
 
+## Requirements
 
-#### Deliverables:
-- Complete source code of the FastAPI application.
-- A README or documentation detailing the API usage, setup instructions, and any important decisions made during development.
+* Python 3.11+
+* `uv`
+* Stability AI API key
 
-#### Evaluation Criteria:
-- Functionality and correctness of the FastAPI application in an async way.
-- Effective integration of the Stable Diffusion model.
-- Creativity and utility of the custom prompt system.
+## Setup
 
-#### Tips:
-- Start with a basic FastAPI setup and gradually integrate the image generation features.
+Install the dependencies:
 
+```bash
+uv sync
+```
 
-This project is an excellent opportunity to demonstrate your skills in web API development, asynchronous programming, and AI model integration. Good luck!
+Create a `.env` file in the project root:
+
+```env
+STABILITY_API_KEY=your_api_key_here
+```
+
+Start the API:
+
+```bash
+uv run uvicorn app:app --reload
+```
+
+The API will be available at:
+
+```text
+http://localhost:8000
+```
+
+Interactive API documentation is available at:
+
+```text
+http://localhost:8000/docs
+```
+
+## API Endpoints
+
+### `POST /images`
+
+Starts a new image-generation job.
+
+Request:
+
+```json
+{
+  "prompt": "a person being very happy that the program works. he can now upload the assignment and eat lunch"
+}
+```
+
+Response:
+
+```json
+{
+  "image_id": "217366e9-3e00-4a73-8dfa-d2fab783d53a",
+  "status": "processing"
+}
+```
+
+### `GET /image/{image_id}`
+
+Checks the status of a generation job.
+
+While the image is being generated:
+
+```json
+{
+  "image_id": "217366e9-3e00-4a73-8dfa-d2fab783d53a",
+  "status": "processing"
+}
+```
+
+When generation is complete, the endpoint returns the generated PNG image.
+
+If the image ID does not exist, the API returns `404 Not Found`.
+
+## Example
+
+Create an image:
+
+```bash
+curl -X POST http://localhost:8000/images \
+  -H "Content-Type: application/json" \
+  -d "{\"prompt\":\"a person being very happy that the program works. he can now upload the assignment and eat lunch\"}"
+```
+
+The response contains an `image_id`.
+
+Then request:
+
+```text
+GET /image/{image_id}
+```
+
+Initially, the response may show `processing`. After the background task finishes, the same request returns the generated image.
+For this example, it gives this image as output:
+![alt text](assignment\images\217366e9-3e00-4a73-8dfa-d2fab783d53a.png)
+
+## Project Structure
+
+```text
+assignment/
+├── app.py
+├── image_generator/
+│   ├── __init__.py
+│   ├── image_generator.py
+│   └── stability_api.py
+├── images/
+├── pyproject.toml
+└── README.md
+```
+
+The `image_generator` package contains the provided Stable Diffusion integration, while `app.py` provides the FastAPI endpoints and background processing.

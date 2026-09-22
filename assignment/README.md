@@ -124,8 +124,6 @@ GET /image/{image_id}
 ```
 
 Initially, the response may show `processing`. After the background task finishes, the same request returns the generated image.
-For this example, it gives this image as output:
-![alt text](assignment\images\217366e9-3e00-4a73-8dfa-d2fab783d53a.png)
 
 ## Project Structure
 
